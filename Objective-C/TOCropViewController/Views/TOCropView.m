@@ -58,8 +58,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 @property (nonatomic, strong) UIImageView *foregroundImageView;              /* A copy of the background image view, placed over the dimming views */
 @property (nonatomic, strong) TOCropScrollView *scrollView;                  /* The scroll view in charge of panning/zooming the image. */
 @property (nonatomic, strong) UIView *overlayView;                           /* A semi-transparent grey view, overlaid on top of the background image */
-@property (nonatomic, strong) UIView *translucencyView;                      /* A blur view that is made visible when the user isn't interacting with the crop view */
-@property (nonatomic, strong) id translucencyEffect;                         /* The dark blur visual effect applied to the visual effect view. */
 @property (nonatomic, strong, readwrite) TOCropOverlayView *gridOverlayView; /* A grid view overlaid on top of the foreground image view's container. */
 
 /* Gesture Recognizers */
@@ -177,15 +175,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     self.overlayView.hidden = NO;
     self.overlayView.userInteractionEnabled = NO;
     [self addSubview:self.overlayView];
-
-    // Translucency View
-    self.translucencyEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
-    self.translucencyView = [[UIVisualEffectView alloc] initWithEffect:self.translucencyEffect];
-    self.translucencyView.frame = self.bounds;
-    self.translucencyView.hidden = self.translucencyAlwaysHidden;
-    self.translucencyView.userInteractionEnabled = NO;
-    self.translucencyView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self addSubview:self.translucencyView];
 
     // The forground container that holds the foreground image view
     self.foregroundContainerView = [[UIView alloc] initWithFrame:(CGRect){0, 0, 200, 200}];
@@ -734,10 +723,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     });
 }
 
-- (void)toggleTranslucencyViewVisible:(BOOL)visible {
-    [(UIVisualEffectView *)self.translucencyView setEffect:visible ? self.translucencyEffect : nil];
-}
-
 - (void)updateToImageCropFrame:(CGRect)imageCropframe {
     // Convert the image crop frame's size from image space to the screen space
     CGFloat minimumSize = self.scrollView.minimumZoomScale;
@@ -1109,9 +1094,7 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
         self.backgroundImageView.alpha = alpha;
         self.foregroundContainerView.alpha = alpha;
         self.gridOverlayView.alpha = alpha;
-
-        [self toggleTranslucencyViewVisible:!hidden];
-
+        
         return;
     }
 
@@ -1120,7 +1103,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 
     [UIView animateWithDuration:0.4f
                      animations:^{
-                         [self toggleTranslucencyViewVisible:!hidden];
                          self.gridOverlayView.alpha = alpha;
                      }];
 }
@@ -1153,14 +1135,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     }
     _alwaysShowCroppingGrid = alwaysShowCroppingGrid;
     [self.gridOverlayView setGridHidden:!_alwaysShowCroppingGrid animated:YES];
-}
-
-- (void)setTranslucencyAlwaysHidden:(BOOL)translucencyAlwaysHidden {
-    if (_translucencyAlwaysHidden == translucencyAlwaysHidden) {
-        return;
-    }
-    _translucencyAlwaysHidden = translucencyAlwaysHidden;
-    self.translucencyView.hidden = _translucencyAlwaysHidden;
 }
 
 - (void)setGridOverlayHidden:(BOOL)gridOverlayHidden {
@@ -1264,25 +1238,12 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
         self.cropBoxLastEditedAngle = self.angle;
     }
 
-    if (animated == NO) {
-        [self toggleTranslucencyViewVisible:!editing];
-        return;
-    }
-
     CGFloat duration = editing ? 0.05f : 0.35f;
     CGFloat delay = editing ? 0.0f : 0.35f;
 
     if (self.croppingStyle == TOCropViewCroppingStyleCircular) {
         delay = 0.0f;
     }
-
-    [UIView animateKeyframesWithDuration:duration
-                                   delay:delay
-                                 options:0
-                              animations:^{
-                                  [self toggleTranslucencyViewVisible:!editing];
-                              }
-                              completion:nil];
 }
 
 - (void)moveCroppedContentToCenterAnimated:(BOOL)animated {
@@ -1384,17 +1345,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
     _simpleRenderMode = simpleMode;
 
     self.editing = NO;
-
-    if (animated == NO) {
-        [self toggleTranslucencyViewVisible:!simpleMode];
-
-        return;
-    }
-
-    [UIView animateWithDuration:0.25f
-                     animations:^{
-                         [self toggleTranslucencyViewVisible:!simpleMode];
-                     }];
 }
 
 - (void)setAspectRatio:(CGSize)aspectRatio {
@@ -1678,7 +1628,6 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
 
         self.backgroundContainerView.hidden = YES;
         self.foregroundContainerView.hidden = YES;
-        self.translucencyView.hidden = YES;
         self.gridOverlayView.hidden = YES;
 
         [UIView animateWithDuration:0.45f
@@ -1694,13 +1643,10 @@ typedef NS_ENUM(NSInteger, TOCropViewOverlayEdge) {
             completion:^(BOOL complete) {
                 self.backgroundContainerView.hidden = NO;
                 self.foregroundContainerView.hidden = NO;
-                self.translucencyView.hidden = self.translucencyAlwaysHidden;
                 self.gridOverlayView.hidden = NO;
 
                 self.backgroundContainerView.alpha = 0.0f;
                 self.gridOverlayView.alpha = 0.0f;
-
-                self.translucencyView.alpha = 1.0f;
 
                 [UIView animateWithDuration:0.45f
                     animations:^{
